@@ -38,87 +38,146 @@
     </header>
 
     <!-- Main content dashboard -->
-    <main class="dashboard-main">
-      <div class="welcome-banner">
-        <div class="banner-text">
-          <h1 class="welcome-title">My Database Diagrams</h1>
-          <p class="welcome-subtitle">Design, edit, and collaborate on structural schemas in real-time.</p>
-        </div>
-        <div class="banner-actions">
-          <button class="btn btn-secondary import-btn-main" @click="showImportModal = true">
-            <Sparkles class="btn-icon text-warning" />
-            Import Blueprint
-          </button>
-          <button class="btn btn-primary create-btn" @click="showCreateModal = true">
-            <Plus class="btn-icon" />
-            Create Diagram
+    <main class="dashboard-main-layout">
+      <!-- Left sidebar for workspaces and members list -->
+      <aside class="workspace-sidebar glass-panel">
+        <!-- Workspace header/switcher title -->
+        <div class="workspace-sidebar-header">
+          <span class="sidebar-sec-title">Workspaces</span>
+          <button class="btn-icon-only" @click="showCreateWorkspaceModal = true" title="Create Workspace">
+            <Plus class="plus-icon-mini" />
           </button>
         </div>
-      </div>
 
-      <!-- Search and Filter Panel -->
-      <div class="filter-panel glass-panel">
-        <div class="search-box">
-          <Search class="search-icon" />
-          <input 
-            v-model="searchQuery" 
-            type="text" 
-            placeholder="Search schemas by name..." 
-            class="search-input"
-          />
-        </div>
-        <div class="dialect-badge-legend">
-          <span class="dialect-dot dot-pg">Postgres</span>
-          <span class="dialect-dot dot-my">MySQL</span>
-          <span class="dialect-dot dot-lit">SQLite</span>
-        </div>
-      </div>
-
-      <!-- Diagram Grid -->
-      <div v-if="filteredDiagrams.length > 0" class="diagram-grid">
-        <div 
-          v-for="diagram in filteredDiagrams" 
-          :key="diagram.id" 
-          class="diagram-card glass-panel"
-          :class="`dialect-border-${diagram.dialect}`"
-          @click="openDiagram(diagram.id)"
-        >
-          <div class="diagram-card-content">
-            <div class="diagram-meta-top">
-              <span class="dialect-badge" :class="`badge-${diagram.dialect}`">{{ diagram.dialect }}</span>
-              <button class="delete-card-btn" @click.stop="confirmDelete(diagram)">
-                <Trash2 class="trash-icon" />
-              </button>
+        <!-- Workspaces selection List -->
+        <div class="workspace-list">
+          <button 
+            v-for="ws in workspaces" 
+            :key="ws.id"
+            class="workspace-item-btn"
+            :class="{ 'is-active': activeWorkspaceId === ws.id }"
+            @click="selectWorkspace(ws.id)"
+          >
+            <div class="workspace-btn-content">
+              <span class="workspace-avatar-letter">{{ ws.name.charAt(0).toUpperCase() }}</span>
+              <div class="workspace-btn-meta">
+                <span class="workspace-btn-name">{{ ws.name }}</span>
+                <span class="workspace-btn-desc">{{ ws.diagram_count || 0 }} diagrams</span>
+              </div>
             </div>
-            <h3 class="diagram-name">{{ diagram.name }}</h3>
-            <p class="diagram-desc">{{ diagram.description || 'No description provided.' }}</p>
-            <div class="diagram-meta-bottom">
-              <Calendar class="meta-icon" />
-              <span>Updated {{ formatDate(diagram.updated_at) }}</span>
+          </button>
+        </div>
+
+        <div class="workspace-sidebar-divider"></div>
+
+        <!-- Workspace Members listing section -->
+        <div class="workspace-members-section" v-if="activeWorkspaceId">
+          <div class="workspace-sidebar-header">
+            <span class="sidebar-sec-title">Collaborators</span>
+            <button class="btn-icon-only text-primary-glow" @click="showInviteMemberModal = true" title="Invite Member">
+              <Plus class="plus-icon-mini" />
+            </button>
+          </div>
+
+          <div class="workspace-members-list">
+            <div 
+              v-for="member in workspaceMembers" 
+              :key="member.id"
+              class="member-item"
+            >
+              <img :src="member.avatar_url || '/logo.png'" class="member-avatar" alt="Avatar" />
+              <div class="member-meta">
+                <span class="member-name">{{ member.name }}</span>
+                <span class="member-role">{{ member.role }}</span>
+              </div>
             </div>
           </div>
-          <div class="card-arrow">
-            <ArrowRight class="arrow-icon" />
+        </div>
+      </aside>
+
+      <!-- Right column for actual active diagrams lists -->
+      <div class="dashboard-content-area">
+        <div class="welcome-banner">
+          <div class="banner-text">
+            <h1 class="welcome-title">{{ activeWorkspaceName }}</h1>
+            <p class="welcome-subtitle">Design, edit, and collaborate on structural schemas inside this workspace.</p>
+          </div>
+          <div class="banner-actions">
+            <button class="btn btn-secondary import-btn-main" @click="showImportModal = true">
+              <Sparkles class="btn-icon text-warning" />
+              Import Blueprint
+            </button>
+            <button class="btn btn-primary create-btn" @click="showCreateModal = true">
+              <Plus class="btn-icon" />
+              Create Diagram
+            </button>
           </div>
         </div>
-      </div>
 
-      <!-- Empty State -->
-      <div v-else class="empty-state glass-panel">
-        <div class="empty-icon-box">
-          <Database class="empty-icon" />
+        <!-- Search and Filter Panel -->
+        <div class="filter-panel glass-panel">
+          <div class="search-box">
+            <Search class="search-icon" />
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Search schemas by name..." 
+              class="search-input"
+            />
+          </div>
+          <div class="dialect-badge-legend">
+            <span class="dialect-dot dot-pg">Postgres</span>
+            <span class="dialect-dot dot-my">MySQL</span>
+            <span class="dialect-dot dot-lit">SQLite</span>
+          </div>
         </div>
-        <h3>No schemas found</h3>
-        <p>Create your first schema or seed a pre-made template to try visual relations!</p>
-        <div class="empty-actions">
-          <button class="btn btn-secondary" @click="showImportModal = true">
-            <Sparkles class="btn-icon text-warning" />
-            Import Blueprint
-          </button>
-          <button class="btn btn-primary" @click="showCreateModal = true">
-            <Plus class="btn-icon" />
-            Create Diagram
-          </button>
+
+        <!-- Diagram Grid -->
+        <div v-if="filteredDiagrams.length > 0" class="diagram-grid">
+          <div 
+            v-for="diagram in filteredDiagrams" 
+            :key="diagram.id" 
+            class="diagram-card glass-panel"
+            :class="`dialect-border-${diagram.dialect}`"
+            @click="openDiagram(diagram.id)"
+          >
+            <div class="diagram-card-content">
+              <div class="diagram-meta-top">
+                <span class="dialect-badge" :class="`badge-${diagram.dialect}`">{{ diagram.dialect }}</span>
+                <button class="delete-card-btn" @click.stop="confirmDelete(diagram)">
+                  <Trash2 class="trash-icon" />
+                </button>
+              </div>
+              <h3 class="diagram-name">{{ diagram.name }}</h3>
+              <p class="diagram-desc">{{ diagram.description || 'No description provided.' }}</p>
+              <div class="diagram-meta-bottom">
+                <Calendar class="meta-icon" />
+                <span>Updated {{ formatDate(diagram.updated_at) }}</span>
+              </div>
+            </div>
+            <div class="card-arrow">
+              <ArrowRight class="arrow-icon" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else class="empty-state glass-panel">
+          <div class="empty-icon-box">
+            <Database class="empty-icon" />
+          </div>
+          <h3>No schemas found</h3>
+          <p>Create your first schema inside this workspace or seed a template to try visual relations!</p>
+          <div class="empty-actions">
+            <button class="btn btn-secondary" @click="showImportModal = true">
+              <Sparkles class="btn-icon text-warning" />
+              Import Blueprint
+            </button>
+            <button class="btn btn-primary" @click="showCreateModal = true">
+              <Plus class="btn-icon" />
+              Create Diagram
+            </button>
+          </div>
         </div>
       </div>
     </main>
@@ -240,6 +299,87 @@
       v-if="showImportModal" 
       @close="showImportModal = false" 
     />
+
+    <!-- Create Workspace Modal -->
+    <div v-if="showCreateWorkspaceModal" class="modal-backdrop">
+      <div class="modal-card glass-panel animate-fade-in">
+        <div class="modal-header">
+          <div class="modal-icon-title">
+            <Sparkles class="modal-icon-sparkle" />
+            <h2>Create Workspace</h2>
+          </div>
+          <button class="modal-close-btn" @click="showCreateWorkspaceModal = false">&times;</button>
+        </div>
+        
+        <form @submit.prevent="handleCreateWorkspace" class="modal-form">
+          <div class="form-group">
+            <label for="ws-name">Workspace Name</label>
+            <input 
+              id="ws-name" 
+              v-model="newWorkspaceName" 
+              type="text" 
+              placeholder="e.g. SynchronizeTeams Workspace" 
+              class="input-field" 
+              required
+            />
+          </div>
+
+          <div class="modal-buttons">
+            <button type="button" class="btn btn-secondary" @click="showCreateWorkspaceModal = false">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="workspaceLoading">
+              {{ workspaceLoading ? 'Creating...' : 'Create Workspace' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Invite Workspace Member Modal -->
+    <div v-if="showInviteMemberModal" class="modal-backdrop">
+      <div class="modal-card glass-panel animate-fade-in">
+        <div class="modal-header">
+          <div class="modal-icon-title">
+            <Sparkles class="modal-icon-sparkle" />
+            <h2>Invite Member</h2>
+          </div>
+          <button class="modal-close-btn" @click="showInviteMemberModal = false">&times;</button>
+        </div>
+        
+        <form @submit.prevent="handleInviteMember" class="modal-form">
+          <div class="form-group">
+            <label for="member-username">Invited Username</label>
+            <input 
+              id="member-username" 
+              v-model="inviteUsername" 
+              type="text" 
+              placeholder="Enter developer username..." 
+              class="input-field" 
+              required
+            />
+            <p class="form-hint">Type the developer name case-insensitively. They must have logged in at least once.</p>
+          </div>
+
+          <!-- Alert cards inside form -->
+          <div v-if="inviteError" class="alert alert-danger animate-fade-in">
+            {{ inviteError }}
+          </div>
+          <div v-if="inviteSuccess" class="alert alert-success animate-fade-in">
+            {{ inviteSuccess }}
+          </div>
+
+          <div class="modal-buttons">
+            <button type="button" class="btn btn-secondary" @click="showInviteMemberModal = false">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="workspaceLoading">
+              {{ workspaceLoading ? 'Inviting...' : 'Send Invitation' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
     
     <!-- Footer Credits -->
     <footer class="dashboard-footer">
@@ -265,6 +405,23 @@ const isCreating = ref(false);
 const isDeleting = ref(false);
 const diagramToDelete = ref(null);
 
+// Workspace States
+const workspaces = ref([]);
+const activeWorkspaceId = ref('');
+const workspaceMembers = ref([]);
+const showCreateWorkspaceModal = ref(false);
+const showInviteMemberModal = ref(false);
+const newWorkspaceName = ref('');
+const inviteUsername = ref('');
+const inviteError = ref('');
+const inviteSuccess = ref('');
+const workspaceLoading = ref(false);
+
+const activeWorkspaceName = computed(() => {
+  const activeWs = workspaces.value.find(w => w.id === activeWorkspaceId.value);
+  return activeWs ? activeWs.name : 'Database Diagrams';
+});
+
 const newDiagramForm = ref({
   name: '',
   description: '',
@@ -283,13 +440,107 @@ onMounted(async () => {
   if (!user.value) {
     navigateTo('/login');
   } else {
+    await loadWorkspaces();
     await loadDiagrams();
   }
 });
 
+const loadWorkspaces = async () => {
+  try {
+    const data = await $fetch('/api/workspaces');
+    workspaces.value = data.workspaces || [];
+    if (workspaces.value.length > 0) {
+      const stored = localStorage.getItem('active_workspace_id');
+      if (stored && workspaces.value.some(w => w.id === stored)) {
+        activeWorkspaceId.value = stored;
+      } else {
+        activeWorkspaceId.value = workspaces.value[0].id;
+      }
+      await loadWorkspaceMembers();
+    }
+  } catch (e) {
+    console.error('Failed to load workspaces:', e);
+  }
+};
+
+const selectWorkspace = async (workspaceId) => {
+  activeWorkspaceId.value = workspaceId;
+  localStorage.setItem('active_workspace_id', workspaceId);
+  await loadWorkspaceMembers();
+  await loadDiagrams();
+};
+
+const loadWorkspaceMembers = async () => {
+  if (!activeWorkspaceId.value) return;
+  try {
+    const data = await $fetch('/api/workspaces/members', {
+      query: { workspaceId: activeWorkspaceId.value }
+    });
+    workspaceMembers.value = data.members || [];
+  } catch (e) {
+    console.error('Failed to load workspace members:', e);
+  }
+};
+
+const handleCreateWorkspace = async () => {
+  const name = newWorkspaceName.value.trim();
+  if (!name) return;
+  
+  workspaceLoading.value = true;
+  try {
+    const data = await $fetch('/api/workspaces', {
+      method: 'POST',
+      body: { name }
+    });
+    if (data.success) {
+      newWorkspaceName.value = '';
+      showCreateWorkspaceModal.value = false;
+      await loadWorkspaces();
+      await selectWorkspace(data.workspace.id);
+    }
+  } catch (e) {
+    console.error('Failed to create workspace:', e);
+  } finally {
+    workspaceLoading.value = false;
+  }
+};
+
+const handleInviteMember = async () => {
+  inviteError.value = '';
+  inviteSuccess.value = '';
+  const username = inviteUsername.value.trim();
+  if (!username) return;
+  
+  workspaceLoading.value = true;
+  try {
+    const data = await $fetch('/api/workspaces/invite', {
+      method: 'POST',
+      body: {
+        workspaceId: activeWorkspaceId.value,
+        username
+      }
+    });
+    if (data.success) {
+      inviteSuccess.value = data.message;
+      inviteUsername.value = '';
+      await loadWorkspaceMembers();
+      setTimeout(() => {
+        inviteSuccess.value = '';
+        showInviteMemberModal.value = false;
+      }, 2000);
+    }
+  } catch (e) {
+    inviteError.value = e.data?.statusMessage || 'Failed to invite user';
+  } finally {
+    workspaceLoading.value = false;
+  }
+};
+
 const loadDiagrams = async () => {
   try {
-    const data = await $fetch('/api/diagrams');
+    const data = await $fetch('/api/diagrams', {
+      query: { workspaceId: activeWorkspaceId.value }
+    });
     diagrams.value = data.diagrams || [];
   } catch (e) {
     console.error('Failed to load diagrams list:', e);
@@ -310,7 +561,10 @@ const handleCreateDiagram = async () => {
   try {
     const res = await $fetch('/api/diagrams', {
       method: 'POST',
-      body: newDiagramForm.value
+      body: {
+        ...newDiagramForm.value,
+        workspaceId: activeWorkspaceId.value
+      }
     });
     if (res.success && res.diagramId) {
       showCreateModal.value = false;
@@ -982,5 +1236,221 @@ const formatDate = (dateStr) => {
 
 .text-warning {
   color: hsl(var(--warning));
+}
+
+/* Dashboard Main Grid Layout */
+.dashboard-main-layout {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+  flex: 1;
+}
+
+/* Sidebar Workspace Panel */
+.workspace-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  gap: 1.25rem;
+  height: fit-content;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.workspace-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-sec-title {
+  font-size: 0.775rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--muted-foreground));
+}
+
+.btn-icon-only {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-icon-only:hover {
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.2);
+}
+
+.plus-icon-mini {
+  width: 14px;
+  height: 14px;
+}
+
+.workspace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.workspace-item-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  padding: 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.workspace-item-btn:hover {
+  background: hsl(var(--muted) / 0.3);
+}
+
+.workspace-item-btn.is-active {
+  background: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.25);
+}
+
+.workspace-btn-content {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.workspace-avatar-letter {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, hsl(var(--primary)), #06b6d4);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.workspace-btn-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  overflow: hidden;
+}
+
+.workspace-btn-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-btn-desc {
+  font-size: 0.65rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.workspace-sidebar-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Collaborators/Members Section */
+.workspace-members-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.workspace-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.member-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #1e293b;
+}
+
+.member-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.member-name {
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: hsl(var(--foreground));
+}
+
+.member-role {
+  font-size: 0.625rem;
+  color: hsl(var(--primary));
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+/* Dashboard Content Right Area */
+.dashboard-content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+/* Alert components inside forms */
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.775rem;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+.alert-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.alert-success {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #34d399;
 }
 </style>

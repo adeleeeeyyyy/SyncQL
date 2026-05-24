@@ -21,10 +21,12 @@ export default defineEventHandler(async (event) => {
   
   const diagramId = crypto.randomUUID();
   
+  const workspaceId = body?.workspaceId || null;
+
   // Insert core diagram record
   exec(
-    'INSERT INTO diagrams (id, name, description, user_id, dialect) VALUES (?, ?, ?, ?, ?)',
-    [diagramId, name, description, user.userId, dialect]
+    'INSERT INTO diagrams (id, name, description, user_id, dialect, workspace_id) VALUES (?, ?, ?, ?, ?, ?)',
+    [diagramId, name, description, user.userId, dialect, workspaceId]
   );
   
   // Apply templates

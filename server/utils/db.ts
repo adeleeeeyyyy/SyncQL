@@ -182,4 +182,34 @@ function initializeSchema() {
   exec(`CREATE INDEX IF NOT EXISTS idx_columns_table ON columns(table_id);`);
   exec(`CREATE INDEX IF NOT EXISTS idx_relations_diagram ON relations(diagram_id);`);
   exec(`CREATE INDEX IF NOT EXISTS idx_notes_diagram ON notes(diagram_id);`);
+
+  // 8. Workspaces Tables
+  exec(`
+    CREATE TABLE IF NOT EXISTS workspaces (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      owner_id TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  exec(`
+    CREATE TABLE IF NOT EXISTS workspace_members (
+      workspace_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (workspace_id, user_id),
+      FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Migrate diagrams table to have workspace_id TEXT column
+  try {
+    exec('ALTER TABLE diagrams ADD COLUMN workspace_id TEXT;');
+  } catch (e) {
+    // Column already exists
+  }
 }

@@ -29,6 +29,32 @@ export default defineEventHandler((event) => {
       statusMessage: 'Diagram not found.'
     });
   }
+
+  // Security Check: Enforce workspace boundaries
+  if (diagram.workspace_id) {
+    const isMember = queryOne(
+      `SELECT * FROM workspace_members WHERE workspace_id = ? AND user_id = ?`,
+      [diagram.workspace_id, user.userId]
+    );
+    const isOwner = queryOne(
+      `SELECT * FROM workspaces WHERE id = ? AND owner_id = ?`,
+      [diagram.workspace_id, user.userId]
+    );
+    if (!isMember && !isOwner) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'You do not have access to this diagram workspace.'
+      });
+    }
+  } else {
+    // Backwards compatibility: verify diagram ownership
+    if (diagram.user_id !== user.userId) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'You do not have access to this diagram.'
+      });
+    }
+  }
   
   // 2. Fetch all Tables
   const tables = query('SELECT * FROM tables WHERE diagram_id = ? ORDER BY name ASC', [diagramId]);

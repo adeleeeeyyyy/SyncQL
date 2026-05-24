@@ -20,13 +20,32 @@ export default defineEventHandler((event) => {
     });
   }
   
-  // Verify ownership
-  const diagram = queryOne('SELECT * FROM diagrams WHERE id = ? AND user_id = ?', [diagramId, user.userId]);
+  // Fetch and verify permissions
+  const diagram = queryOne('SELECT * FROM diagrams WHERE id = ?', [diagramId]);
   
   if (!diagram) {
     throw createError({
+      statusCode: 404,
+      statusMessage: 'Diagram not found.'
+    });
+  }
+
+  let canDelete = diagram.user_id === user.userId;
+
+  if (!canDelete && diagram.workspace_id) {
+    const isWorkspaceOwner = queryOne(
+      `SELECT * FROM workspaces WHERE id = ? AND owner_id = ?`,
+      [diagram.workspace_id, user.userId]
+    );
+    if (isWorkspaceOwner) {
+      canDelete = true;
+    }
+  }
+
+  if (!canDelete) {
+    throw createError({
       statusCode: 403,
-      statusMessage: 'Forbidden. You do not own this diagram.'
+      statusMessage: 'Forbidden. You do not have permission to delete this diagram.'
     });
   }
   
