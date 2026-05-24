@@ -113,6 +113,7 @@
       @mousemove="onCanvasMouseMove"
       @mouseup="onCanvasMouseUp"
       @wheel="onCanvasWheel"
+      @contextmenu.prevent="showContextMenu"
     >
       <div 
         class="canvas-viewport"
@@ -179,6 +180,28 @@
         >
           <div class="collaborator-cursor-pointer"></div>
           <div class="collaborator-cursor-label">{{ peer.name }}</div>
+        </div>
+      </div>
+
+      <!-- Right-Click Context Menu overlay panel -->
+      <div 
+        v-if="contextMenu.show" 
+        class="custom-context-menu glass-panel"
+        :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+      >
+        <div v-if="contextMenu.type === 'canvas'">
+          <button class="context-menu-item" @click="handleContextMenuAddTable">
+            <Plus class="context-menu-icon" /> Add Table Here
+          </button>
+        </div>
+        <div v-else-if="contextMenu.type === 'table'">
+          <button class="context-menu-item" @click="handleContextMenuAddColumn">
+            <Plus class="context-menu-icon" /> Add Column
+          </button>
+          <div class="context-menu-divider"></div>
+          <button class="context-menu-item text-danger" @click="handleContextMenuDeleteTable">
+            <Trash2 class="context-menu-icon" /> Delete Table
+          </button>
         </div>
       </div>
     </div>
@@ -338,6 +361,113 @@ const latestAckId = ref(null);
 const accessRequestStatus = ref(''); // '' | 'pending' | 'denied'
 const activeRequests = ref([]); // hosts pending approvals list
 
+// Context Menu reactive state
+const contextMenu = ref({
+  show: false,
+  x: 0,
+  y: 0,
+  type: '', // 'canvas' | 'table'
+  targetId: null,
+  canvasCoords: { x: 0, y: 0 }
+});
+
+const showContextMenu = (e) => {
+  if (myRole.value === 'viewer') return;
+  
+  const rect = canvasContainer.value?.getBoundingClientRect();
+  if (!rect) return;
+  
+  const screenX = e.clientX;
+  const screenY = e.clientY;
+  
+  // Calculate relative coordinate positions for the context menu modal rendering
+  const relativeX = screenX - rect.left;
+  const relativeY = screenY - rect.top;
+  
+  // Convert screen coordinates into zoomed/panned viewport coordinates
+  const canvasX = Math.round((screenX - rect.left - panX.value) / scale.value);
+  const canvasY = Math.round((screenY - rect.top - panY.value) / scale.value);
+  
+  // Check if click was inside a table card
+  const tableEl = e.target.closest('.table-card');
+  if (tableEl) {
+    // Find matching table object by title/id context
+    const tableName = tableEl.querySelector('.table-name-text')?.textContent?.trim();
+    const tableObj = tables.value.find(t => t.name === tableName);
+    if (tableObj) {
+      contextMenu.value = {
+        show: true,
+        x: relativeX,
+        y: relativeY,
+        type: 'table',
+        targetId: tableObj.id,
+        canvasCoords: { x: canvasX, y: canvasY }
+      };
+      return;
+    }
+  }
+  
+  // Otherwise, fallback to canvas context menu
+  contextMenu.value = {
+    show: true,
+    x: relativeX,
+    y: relativeY,
+    type: 'canvas',
+    targetId: null,
+    canvasCoords: { x: canvasX, y: canvasY }
+  };
+};
+
+const closeContextMenu = () => {
+  contextMenu.value.show = false;
+};
+
+const handleContextMenuAddTable = () => {
+  const { x, y } = contextMenu.value.canvasCoords;
+  createNewTableAt(x, y);
+  closeContextMenu();
+};
+
+const handleContextMenuAddColumn = () => {
+  if (contextMenu.value.targetId) {
+    handleColumnCreate(contextMenu.value.targetId);
+  }
+  closeContextMenu();
+};
+
+const handleContextMenuDeleteTable = () => {
+  if (contextMenu.value.targetId) {
+    if (confirm('Are you sure you want to delete this table?')) {
+      handleTableDelete(contextMenu.value.targetId);
+    }
+  }
+  closeContextMenu();
+};
+
+const createNewTableAt = (x, y) => {
+  deselectAll();
+  
+  const presetColors = ['table-theme-violet', 'table-theme-emerald', 'table-theme-rose', 'table-theme-amber', 'table-theme-blue'];
+  const randomColor = presetColors[Math.floor(Math.random() * presetColors.length)];
+
+  const newTable = {
+    id: crypto.randomUUID(),
+    diagram_id: diagram.value.id,
+    name: `new_table_${tables.value.length + 1}`,
+    color: randomColor,
+    x,
+    y
+  };
+  
+  tables.value.push(newTable);
+  selectElement('table', newTable.id);
+  
+  sendWSEvent({
+    type: 'table-create',
+    table: newTable
+  });
+};
+
 const saveStatusText = computed(() => {
   if (saveStatus.value === 'saving') return 'Saving...';
   if (saveStatus.value === 'offline') return 'Offline';
@@ -360,11 +490,13 @@ onMounted(async () => {
   
   // Listeners for escape or deselects
   window.addEventListener('keydown', onGlobalKeyDown);
+  window.addEventListener('click', closeContextMenu);
 });
 
 onUnmounted(() => {
   if (socket) socket.close();
   window.removeEventListener('keydown', onGlobalKeyDown);
+  window.removeEventListener('click', closeContextMenu);
 });
 
 // Diagram Loading API
@@ -1043,6 +1175,60 @@ const denyEditAccess = (req) => {
 </script>
 
 <style scoped>
+/* Custom Context Menu styling */
+.custom-context-menu {
+  position: absolute;
+  min-width: 160px;
+  background: hsla(224, 25%, 12%, 0.95);
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 0.35rem;
+  z-index: 10000;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  backdrop-filter: blur(12px);
+}
+
+.context-menu-item {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: hsl(var(--foreground));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.context-menu-item:hover {
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
+.context-menu-item.text-danger:hover {
+  background: hsla(0, 80%, 60%, 0.15);
+  color: #ff8888;
+}
+
+.context-menu-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.context-menu-divider {
+  height: 1px;
+  background-color: hsl(var(--border) / 0.4);
+  margin: 0.25rem 0;
+}
+
 /* Sidebar Toggle System */
 .sidebar-toggle-btn {
   position: absolute;
