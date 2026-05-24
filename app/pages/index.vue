@@ -243,7 +243,7 @@
     
     <!-- Footer Credits -->
     <footer class="dashboard-footer">
-      <p>SyncQL &copy; 2026. Designed and Developed by <span class="team-highlight">SynchronizeTeams</span></p>
+      <p>All rights reserved SynchronizeTeams &copy; 2026</p>
     </footer>
   </div>
 </template>

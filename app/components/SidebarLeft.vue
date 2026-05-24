@@ -70,7 +70,7 @@
 
     <!-- Sidebar footer credits -->
     <div class="sidebar-footer-credit">
-      <span>SyncQL by <span class="team-highlight-mini">SynchronizeTeams</span></span>
+      <span>All rights reserved © 2026 by SynchronizeTeams</span>
     </div>
   </aside>
 </template>

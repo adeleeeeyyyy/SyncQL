@@ -11,7 +11,6 @@
         </div>
         <h1 class="brand-title">SyncQL</h1>
         <p class="brand-subtitle">Real-time Visual Database Schema Designer</p>
-        <p class="developer-credit">Developed by SynchronizeTeams</p>
       </div>
 
       <!-- Quick Bypass / Demo Play Mode -->
