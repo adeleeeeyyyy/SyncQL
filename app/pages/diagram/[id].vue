@@ -293,6 +293,27 @@
         <p class="modal-desc">You are currently in Viewer mode. The host has been notified of your request to edit this canvas.</p>
       </div>
     </div>
+
+    <!-- Beautiful Custom Web Modal for Table Deletion Confirmation -->
+    <div v-if="deleteTableModal.show" class="fullscreen-access-modal animate-fade-in delete-modal-overlay">
+      <div class="access-modal-content glass-panel text-center delete-modal-content">
+        <h3 class="modal-title-glow text-danger-glow">Delete Table</h3>
+        <p class="modal-desc">
+          Are you sure you want to delete table <strong class="text-white">"{{ deleteTableModal.tableName }}"</strong>?
+        </p>
+        <p class="modal-sub-desc">
+          This will permanently remove the table, all of its columns, and any relationships connected to it. This action cannot be undone.
+        </p>
+        <div class="modal-buttons">
+          <button class="btn btn-secondary btn-sm" @click="deleteTableModal.show = false">
+            Cancel
+          </button>
+          <button class="btn btn-danger btn-sm" @click="confirmTableDelete">
+            Delete Table
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -437,9 +458,7 @@ const handleContextMenuAddColumn = () => {
 
 const handleContextMenuDeleteTable = () => {
   if (contextMenu.value.targetId) {
-    if (confirm('Are you sure you want to delete this table?')) {
-      handleTableDelete(contextMenu.value.targetId);
-    }
+    triggerTableDelete(contextMenu.value.targetId);
   }
   closeContextMenu();
 };
@@ -1030,7 +1049,27 @@ const handleTableUpdate = (data) => {
   }
 };
 
-const handleTableDelete = (tableId) => {
+const deleteTableModal = ref({
+  show: false,
+  tableId: null,
+  tableName: ''
+});
+
+const triggerTableDelete = (tableId) => {
+  const table = tables.value.find(t => t.id === tableId);
+  if (table) {
+    deleteTableModal.value = {
+      show: true,
+      tableId: table.id,
+      tableName: table.name
+    };
+  }
+};
+
+const confirmTableDelete = () => {
+  const tableId = deleteTableModal.value.tableId;
+  if (!tableId) return;
+  
   tables.value = tables.value.filter(t => t.id !== tableId);
   columns.value = columns.value.filter(c => c.table_id !== tableId);
   relations.value = relations.value.filter(r => r.source_table_id !== tableId && r.target_table_id !== tableId);
@@ -1041,6 +1080,16 @@ const handleTableDelete = (tableId) => {
     type: 'table-delete',
     tableId
   });
+  
+  deleteTableModal.value = {
+    show: false,
+    tableId: null,
+    tableName: ''
+  };
+};
+
+const handleTableDelete = (tableId) => {
+  triggerTableDelete(tableId);
 };
 
 const handleColumnCreate = (tableId) => {
@@ -1175,6 +1224,41 @@ const denyEditAccess = (req) => {
 </script>
 
 <style scoped>
+/* Custom Delete Table Modal styles */
+.text-danger-glow {
+  color: #ff4a5a !important;
+  text-shadow: 0 0 12px rgba(255, 74, 90, 0.45);
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.modal-sub-desc {
+  font-size: 0.775rem;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+  margin-top: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.btn-danger {
+  background-color: #ff4a5a !important;
+  color: #fff !important;
+  border: 1px solid #ff4a5a !important;
+}
+
+.btn-danger:hover {
+  background-color: #ff2b3e !important;
+  border-color: #ff2b3e !important;
+  box-shadow: 0 0 12px rgba(255, 74, 90, 0.4) !important;
+}
+
 /* Custom Context Menu styling */
 .custom-context-menu {
   position: absolute;
